@@ -34,6 +34,7 @@ jobs:
           LLM_ENDPOINT: ${{ vars.LLM_ENDPOINT || 'http://host.docker.internal:1234/v1/' }}
           OUT_FILE: review.json
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'dummy' }}
+          LLM_MODEL: ${{ vars.LLM_MODEL || 'qwen/qwen2.5-coder-14b' }}
         run: python scripts/LLMReview.py
 
       - name: Display review results

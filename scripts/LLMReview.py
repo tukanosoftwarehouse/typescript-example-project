@@ -12,8 +12,6 @@ import requests
 from dotenv import load_dotenv
 load_dotenv()
 
-MAX_CHUNK_CHARS = 4096  # heuristic; tune per model context limits
-MODEL = "qwen/qwen2.5-coder-14b"
 class GitHubClient:
     """Consolidated GitHub API client for PR operations."""
     
@@ -121,6 +119,7 @@ def main() -> None:
     pr_number_str = os.getenv('PR_NUMBER', default="1")
     pr_number = int(pr_number_str) if pr_number_str is not None else None
     gh_token = os.getenv("GITHUB_TOKEN")
+    model = os.getenv('LLM_MODEL', 'qwen/qwen2.5-coder-14b')
 
     # Validation
     if not gh_token:
@@ -150,7 +149,7 @@ def main() -> None:
     all_comments = []
     try:
         print(f'🔎 Reviewing full diff (size≈{len(diff_text)} chars)...', file=sys.stderr)
-        raw_json = llm_review_chunk(llm_client, MODEL, diff_text)
+        raw_json = llm_review_chunk(llm_client, model, diff_text)
         # Usuń markdownowe bloki kodu jeśli są
         if raw_json.strip().startswith('```'):
             raw_json = raw_json.strip().split('\n', 1)[-1]
