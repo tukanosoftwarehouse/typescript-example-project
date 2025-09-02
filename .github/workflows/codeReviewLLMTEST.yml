@@ -1,0 +1,46 @@
+name: Code Review LLM
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review-code:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Execute Python script
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number || '1' }}
+          GITHUB_REPOSITORY: ${{ github.repository || 'tukanosoftwarehouse/typescript-example-project' }}
+          LLM_ENDPOINT: ${{ secrets.LLM_ENDPOINT || 'http://host.docker.internal:1234/v1/' }}
+          OUT_FILE: review.json
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'dummy' }}
+        run: python scripts/LLMReview.py
+
+      - name: Display review results
+        run: |
+          echo "=== REVIEW RESULTS ==="
+          if [ -f review.json ]; then
+            cat review.json
+          else
+            echo "review.json not found"
+          fi
