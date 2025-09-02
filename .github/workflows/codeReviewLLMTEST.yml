@@ -31,7 +31,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number || '1' }}
           GITHUB_REPOSITORY: ${{ github.repository || 'tukanosoftwarehouse/typescript-example-project' }}
-          LLM_ENDPOINT: ${{ secrets.LLM_ENDPOINT || 'http://host.docker.internal:1234/v1/' }}
+          LLM_ENDPOINT: ${{ vars.LLM_ENDPOINT || 'http://host.docker.internal:1234/v1/' }}
           OUT_FILE: review.json
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'dummy' }}
         run: python scripts/LLMReview.py
