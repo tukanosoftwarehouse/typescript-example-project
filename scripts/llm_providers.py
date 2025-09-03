@@ -8,6 +8,7 @@ import os
 import yaml
 import openai
 import requests
+from typing import List
 from pathlib import Path
 
 
@@ -262,6 +263,7 @@ class LLMProviderFactory:
     """Factory do tworzenia providerów LLM"""
     
     PROVIDER_CLASSES = {
+        'openrouter_gpt4.1': OpenAIProvider,
         'openai': OpenAIProvider,
         'openai_gpt35': OpenAIProvider,
         'local_lmstudio': LocalLLMProvider,
@@ -293,14 +295,15 @@ class LLMProviderFactory:
     
     @classmethod
     def create_from_config(cls, config_path: Optional[str] = None, provider_override: Optional[str] = None) -> LLMProvider:
-        """Utwórz providera na podstawie pliku konfiguracyjnego"""
         config_data = cls.load_config(config_path)
         
         # Wybierz aktywnego providera
+        env_provider = os.getenv('LLM_PROVIDER')
+        config_provider = config_data.get('active_provider', 'openai')
         active_provider = (
             provider_override or 
-            os.getenv('LLM_PROVIDER') or 
-            config_data.get('active_provider', 'openai')
+            env_provider or 
+            config_provider
         )
         
         if active_provider not in config_data['providers']:
