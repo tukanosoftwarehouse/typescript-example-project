@@ -31,10 +31,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number || '1' }}
           GITHUB_REPOSITORY: ${{ github.repository || 'tukanosoftwarehouse/typescript-example-project' }}
-          LLM_ENDPOINT: ${{ vars.LLM_ENDPOINT || 'http://host.docker.internal:1234/v1/' }}
           OUT_FILE: review.json
+          LLM_CONFIG_PATH: scripts/llm_config.yml
+          LLM_PROVIDER: ${{ vars.LLM_PROVIDER || 'openai' }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'dummy' }}
-          LLM_MODEL: ${{ vars.LLM_MODEL || 'qwen/qwen2.5-coder-14b' }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # backward compatibility
+          LLM_ENDPOINT: ${{ vars.LLM_ENDPOINT }}
+          LLM_MODEL: ${{ vars.LLM_MODEL }}
         run: python scripts/LLMReview.py
 
       - name: Display review results

@@ -7,9 +7,10 @@ import pathlib
 import sys
 from typing import List
 
-import openai
 import requests
 from dotenv import load_dotenv
+from llm_providers import LLMProviderFactory
+
 load_dotenv()
 
 class GitHubClient:
@@ -79,34 +80,16 @@ class GitHubClient:
         print("✅ Wysłano review z pakietem komentarzy.")
 
 
-def llm_review_chunk(client: openai.OpenAI, model: str, chunk: str) -> str:
-    """Call the LLM on a diff chunk and return raw JSON text."""
-    system = (
+def llm_review_chunk(llm_provider, chunk: str) -> List[dict]:
+    """Call the LLM provider on a diff chunk and return list of comments."""
+    system_prompt = (
         "You are performing a code review as a senior software engineer. In addition to low-level suggestions (null checks, logs), look for deeper architectural concerns: proper exception handling, code separation, testability, and whether the method fulfills its purpose cleanly. Be concise but precise. Look as well for naming code smells\n"
         "OUTPUT FORMAT: jednoznacznie poprawny JSON w formacie:\n"
         "[{'file_path': str, 'line': int, 'level': 'critical|suggestion|nitpick', 'comment': str}, ...]"
     )
-    user = f"""Oceń poniższy diff w formacie unified diff.\n
-    ```diff
-    {chunk}
-    ```"""
-
+    
     try:
-        resp = client.chat.completions.create(
-            model=model,
-            temperature=0.2,
-            max_tokens=32768,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-        )
-        if not resp or not resp.choices:
-            raise ValueError('Invalid response from LLM')
-        content = resp.choices[0].message.content
-        if content is None:
-            raise ValueError('LLM response message content is None')
-        return content.strip()
+        return llm_provider.review_code(chunk, system_prompt)
     except Exception as e:
         raise RuntimeError(f'Error during LLM request: {e}')
 
@@ -114,12 +97,12 @@ def llm_review_chunk(client: openai.OpenAI, model: str, chunk: str) -> str:
 def main() -> None:
     # Configuration
     out_file = os.getenv('OUT_FILE', 'review.json')
-    endpoint = os.getenv('LLM_ENDPOINT', 'http://127.0.0.1:1234/v1/')
     repo = os.getenv('GITHUB_REPOSITORY', 'tukanosoftwarehouse/typescript-example-project')
     pr_number_str = os.getenv('PR_NUMBER', default="1")
     pr_number = int(pr_number_str) if pr_number_str is not None else None
     gh_token = os.getenv("GITHUB_TOKEN")
-    model = os.getenv('LLM_MODEL', 'qwen/qwen2.5-coder-14b')
+    llm_config_path = os.getenv('LLM_CONFIG_PATH', 'scripts/llm_config.yml')
+    llm_provider_override = os.getenv('LLM_PROVIDER')
 
     # Validation
     if not gh_token:
@@ -128,43 +111,41 @@ def main() -> None:
         raise RuntimeError('Brak owner/repo i numer PR przez zmienne środowiskowe GITHUB_REPOSITORY i PR_NUMBER')
 
     # Initialize clients
-    llm_client = openai.OpenAI(
-        base_url=endpoint.rstrip('/'),
-        api_key=os.getenv('OPENAI_API_KEY', 'dummy')
-    )
+    try:
+        llm_provider = LLMProviderFactory.create_from_config(
+            config_path=llm_config_path,
+            provider_override=llm_provider_override
+        )
+        print(f"🤖 Using provider: {llm_provider.get_model_info()}", file=sys.stderr)
+    except Exception as e:
+        raise RuntimeError(f'Błąd podczas inicjalizacji LLM providera: {e}')
+    
     github_client = GitHubClient(gh_token)
 
     # Get diff from GitHub
     try:
         diff_text = github_client.get_pr_diff(repo, pr_number)
         if not diff_text.strip():
-            print('ℹ️ Brak patcha do analizy (być może tylko binaria lub zbyt duże pliki).', file=sys.stderr)
+            print('ℹ️ No diff to review', file=sys.stderr)
             pathlib.Path(out_file).write_text('[]')
             return
     except Exception as exc:
-        print(f'❌ Błąd podczas pobierania diff: {exc}', file=sys.stderr)
+        print(f'❌ Error getting diff: {exc}', file=sys.stderr)
         return
 
     # Get LLM review
     all_comments = []
     try:
         print(f'🔎 Reviewing full diff (size≈{len(diff_text)} chars)...', file=sys.stderr)
-        raw_json = llm_review_chunk(llm_client, model, diff_text)
-        # Usuń markdownowe bloki kodu jeśli są
-        if raw_json.strip().startswith('```'):
-            raw_json = raw_json.strip().split('\n', 1)[-1]
-            if raw_json.endswith('```'):
-                raw_json = raw_json.rsplit('```', 1)[0]
-        comments = json.loads(raw_json)
-        if not isinstance(comments, list):
-            raise ValueError('LLM odpowiedział nie‑listą')
-        all_comments = comments
+        all_comments = llm_review_chunk(llm_provider, diff_text)
+        if not isinstance(all_comments, list):
+            raise ValueError('LLM provider returned non-list response')
     except Exception as exc:
-        print(f'⚠️  Błąd podczas analizy diffu: {exc}', file=sys.stderr)
+        print(f'⚠️  Error reviewing diff: {exc}', file=sys.stderr)
 
     # Save comments to file
     pathlib.Path(out_file).write_text(json.dumps(all_comments, indent=2, ensure_ascii=False))
-    print(f'✅ Zapisano {len(all_comments)} komentarzy do {out_file}')
+    print(f'✅ Saved {len(all_comments)} comments to {out_file}')
 
     # Submit review to GitHub
     try:

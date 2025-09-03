@@ -1,0 +1,38 @@
+# Konfiguracja providerów LLM
+providers:
+  openai:
+    model: "gpt-4"
+    temperature: 0.2
+    max_tokens: 32768
+    endpoint: "https://api.openai.com/v1"
+    api_key_env: "OPENAI_API_KEY"
+  
+  openai_gpt35:
+    model: "gpt-3.5-turbo"
+    temperature: 0.2
+    max_tokens: 16384
+    endpoint: "https://api.openai.com/v1"
+    api_key_env: "OPENAI_API_KEY"
+  
+  local_lmstudio:
+    model: "qwen/qwen2.5-coder-14b"
+    temperature: 0.2
+    max_tokens: 32768
+    endpoint: "http://127.0.0.1:1234/v1"
+    api_key_env: "OPENAI_API_KEY"  # LM Studio używa OpenAI compatible API
+  
+  anthropic:
+    model: "claude-3-sonnet-20240229"
+    temperature: 0.2
+    max_tokens: 32768
+    endpoint: "https://api.anthropic.com"
+    api_key_env: "ANTHROPIC_API_KEY"
+
+# Aktywny provider (można nadpisać przez zmienną środowiskową LLM_PROVIDER)
+active_provider: "openai"
+
+# Globalne ustawienia
+global_settings:
+  timeout_seconds: 120
+  retry_attempts: 3
+  chunk_size_limit: 50000  # maksymalny rozmiar chunka w znakach
