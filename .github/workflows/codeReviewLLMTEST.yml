@@ -37,6 +37,7 @@ jobs:
           LLM_PROVIDER: ${{ vars.LLM_PROVIDER || 'openai' }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'dummy' }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           # backward compatibility
           LLM_ENDPOINT: ${{ vars.LLM_ENDPOINT }}
           LLM_MODEL: ${{ vars.LLM_MODEL }}
